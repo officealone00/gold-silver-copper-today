@@ -9,6 +9,10 @@ export default defineConfig({
   web: {
     host: 'localhost',
     port: 8080,
+    commands: {
+      dev: 'vite --host',
+      build: 'vite build',
+    },
   },
   permissions: [],
   outdir: 'dist',
