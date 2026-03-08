@@ -1,0 +1,18 @@
+import { defineConfig } from '@apps-in-toss/web-framework/config';
+
+export default defineConfig({
+  appName: 'gold-silver-copper-today',
+  brand: {
+    displayName: '오늘 금은동 시세',
+    primaryColor: '#D4AF37',
+  },
+  web: {
+    host: 'localhost',
+    port: 8080,
+  },
+  permissions: [],
+  outdir: 'dist',
+  webViewProps: {
+    type: 'partner',
+  },
+});
