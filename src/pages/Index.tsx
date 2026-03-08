@@ -46,7 +46,7 @@ const Index = () => {
 
       if (error || !result?.success) {
         console.error('Price fetch error:', error ?? result);
-        toast.error('시세 연결이 지연되어 기본 데이터를 표시합니다.');
+        console.warn('시세 연결 지연, 기본 데이터 사용');
         applyFallbackData();
         return;
       }
