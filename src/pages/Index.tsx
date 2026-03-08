@@ -18,47 +18,61 @@ const Index = () => {
   const [data, setData] = useState<PriceData>(mockPriceData);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchGoldPrice = useCallback(async () => {
+  const fetchMetalsPrices = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data: result, error } = await supabase.functions.invoke('fetch-gold-price');
+      const { data: result, error } = await supabase.functions.invoke('fetch-metals-price');
 
       if (error) {
         console.error('Edge function error:', error);
-        toast.error('금 시세를 불러오지 못했습니다. 기본 데이터를 표시합니다.');
+        toast.error('시세를 불러오지 못했습니다. 기본 데이터를 표시합니다.');
         return;
       }
 
-      if (result?.success && result.gold) {
-        const gold = result.gold;
-        const prevBuy = Math.round(gold.pricePerDon - gold.changeAmountPerDon);
+      if (result?.success) {
+        const { gold, silver, copper, usdkrw, collectedAt } = result;
 
         setData(prev => ({
-          ...prev,
-          collectedAt: result.collectedAt,
+          collectedAt,
           gold: {
             baseDate: gold.baseDate,
-            buy: Math.round(gold.pricePerDon),
-            sell: Math.round(gold.pricePerDon * 0.815), // 매도가 추정 (약 81.5%)
-            prevBuy: prevBuy,
+            buy: gold.krwPerDon,
+            sell: Math.round(gold.krwPerDon * 0.815), // 매도가 추정
+            prevBuy: prev.gold.prevBuy, // 전일가는 DB 캐싱 필요
             source: gold.source,
           },
+          silver: {
+            baseDate: silver.baseDate,
+            buy: silver.krwPerDon,
+            sell: Math.round(silver.krwPerDon * 0.66), // 매도가 추정
+            prevBuy: prev.silver.prevBuy,
+            source: silver.source,
+          },
+          copper: {
+            baseDate: copper.baseDate,
+            tonUsd: copper.usdPerTon,
+            prevTonUsd: prev.copper.prevTonUsd,
+            usdkrw: usdkrw,
+            source: copper.source,
+          },
         }));
+
+        toast.success('시세가 업데이트되었습니다.');
       }
     } catch (err) {
-      console.error('Failed to fetch gold price:', err);
-      toast.error('금 시세를 불러오지 못했습니다.');
+      console.error('Failed to fetch metals prices:', err);
+      toast.error('시세를 불러오지 못했습니다.');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchGoldPrice();
-  }, [fetchGoldPrice]);
+    fetchMetalsPrices();
+  }, [fetchMetalsPrices]);
 
   const handleRefresh = () => {
-    fetchGoldPrice();
+    fetchMetalsPrices();
   };
 
   return (
@@ -68,36 +82,31 @@ const Index = () => {
       <div className="space-y-4">
         <SummaryBox data={data} />
 
-        {/* 시세 카드 사이 광고 */}
         <GoldCard data={data.gold} />
         <SilverCard data={data.silver} />
         <AdBanner slot="between-price-cards" size="medium" />
         <CopperCard data={data.copper} />
 
-        {/* 계산기 섹션 전 광고 */}
         <AdBanner slot="before-calculators" size="large" />
 
         <GoldCalculator goldData={data.gold} />
         <GoldSavingSimulator goldData={data.gold} />
 
-        {/* 계산기 사이 광고 */}
         <AdBanner slot="between-calculators" size="medium" />
 
         <SilverInvestmentCalculator silverData={data.silver} />
       </div>
 
-      {/* 하단 광고 */}
       <div className="mt-6">
         <AdBanner slot="footer" size="small" />
       </div>
 
-      {/* Footer */}
       <div className="mt-4 px-5 space-y-3">
         <p className="text-xs text-muted-foreground leading-relaxed">
           본 시세 정보는 참고용이며 실제 거래 가격과 차이가 있을 수 있습니다.
         </p>
         <p className="text-xs text-muted-foreground">
-          출처: 네이버 금융(신한은행) · 한국금거래소 · LME
+          출처: Metals.dev (LBMA · LME · COMEX)
         </p>
         <div className="flex gap-3 text-xs">
           <Link to="/terms" className="text-primary underline">서비스 이용약관</Link>
