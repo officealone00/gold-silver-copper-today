@@ -7,6 +7,7 @@ import CopperCard from '@/components/CopperCard';
 import GoldCalculator from '@/components/GoldCalculator';
 import GoldSavingSimulator from '@/components/GoldSavingSimulator';
 import SilverInvestmentCalculator from '@/components/SilverInvestmentCalculator';
+import AdBanner from '@/components/AdBanner';
 import { mockPriceData } from '@/services/mockData';
 import type { PriceData } from '@/services/mockData';
 import { Link } from 'react-router-dom';
@@ -16,7 +17,6 @@ const Index = () => {
 
   const handleRefresh = () => {
     // In production, fetch fresh data here
-    // For now, mock data is always used
   };
 
   return (
@@ -25,16 +25,32 @@ const Index = () => {
 
       <div className="space-y-4">
         <SummaryBox data={data} />
+
+        {/* 시세 카드 사이 광고 */}
         <GoldCard data={data.gold} />
         <SilverCard data={data.silver} />
+        <AdBanner slot="between-price-cards" size="medium" />
         <CopperCard data={data.copper} />
+
+        {/* 계산기 섹션 전 광고 */}
+        <AdBanner slot="before-calculators" size="large" />
+
         <GoldCalculator goldData={data.gold} />
         <GoldSavingSimulator goldData={data.gold} />
+
+        {/* 계산기 사이 광고 */}
+        <AdBanner slot="between-calculators" size="medium" />
+
         <SilverInvestmentCalculator silverData={data.silver} />
       </div>
 
+      {/* 하단 광고 */}
+      <div className="mt-6">
+        <AdBanner slot="footer" size="small" />
+      </div>
+
       {/* Footer */}
-      <div className="mt-8 px-5 space-y-3">
+      <div className="mt-4 px-5 space-y-3">
         <p className="text-xs text-muted-foreground leading-relaxed">
           본 시세 정보는 참고용이며 실제 거래 가격과 차이가 있을 수 있습니다.
         </p>
