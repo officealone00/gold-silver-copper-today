@@ -50,7 +50,11 @@ Deno.serve(async (req) => {
     const goldUsdPerToz = data.metals.gold || 0;
     const silverUsdPerToz = data.metals.silver || 0;
     const copperUsdPerToz = data.metals.copper || 0;
-    const krwRate = data.currencies?.KRW || 1340;
+    // currencies.KRW = how many USD per 1 KRW (e.g. 0.000673)
+    // We need USD/KRW rate (e.g. 1485), so invert it
+    const krwPerUsd = data.currencies?.KRW;
+    const krwRate = krwPerUsd && krwPerUsd > 0 ? (1 / krwPerUsd) : 1340;
+    console.log('KRW conversion:', { raw: krwPerUsd, inverted: krwRate });
 
     // Convert to KRW
     const goldKrwPerGram = (goldUsdPerToz / 31.1034768) * krwRate;
