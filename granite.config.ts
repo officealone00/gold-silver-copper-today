@@ -5,6 +5,7 @@ export default defineConfig({
   brand: {
     displayName: '오늘 금은동 시세',
     primaryColor: '#D4AF37',
+    icon: 'https://gold-silver-copper-today.lovable.app/favicon.ico',
   },
   web: {
     host: 'localhost',
