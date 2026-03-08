@@ -26,25 +26,17 @@ class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 40, textAlign: 'center', fontFamily: 'sans-serif' }}>
-          <h2 style={{ fontSize: 18, marginBottom: 12 }}>일시적인 오류가 발생했습니다</h2>
-          <p style={{ fontSize: 14, color: '#888', marginBottom: 16 }}>
-            앱을 다시 시작해주세요.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              padding: '10px 24px',
-              fontSize: 14,
-              borderRadius: 8,
-              border: 'none',
-              background: '#3182F6',
-              color: '#fff',
-              cursor: 'pointer',
-            }}
-          >
-            다시 시도
-          </button>
+        <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-6">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
+            <h2 className="text-base font-semibold">일시적인 오류가 발생했습니다</h2>
+            <p className="mt-2 text-sm text-muted-foreground">앱을 다시 시작해주세요.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            >
+              다시 시도
+            </button>
+          </div>
         </div>
       );
     }
