@@ -26,6 +26,7 @@ const Index = () => {
       if (error) {
         console.error('Edge function error:', error);
         toast.error('시세를 불러오지 못했습니다. 기본 데이터를 표시합니다.');
+        setData(mockPriceData);
         return;
       }
 
