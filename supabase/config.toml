@@ -1,7 +1,4 @@
 project_id = "xmjwahfmzjskmilqwnmk"
 
-[functions.fetch-gold-price]
-verify_jwt = false
-
 [functions.fetch-metals-price]
 verify_jwt = false
