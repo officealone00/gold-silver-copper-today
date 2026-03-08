@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Header from '@/components/Header';
 import SummaryBox from '@/components/SummaryBox';
 import GoldCard from '@/components/GoldCard';
