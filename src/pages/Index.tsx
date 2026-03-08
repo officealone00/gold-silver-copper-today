@@ -13,10 +13,15 @@ import type { PriceData } from '@/services/mockData';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import splashLogo from '@/assets/splash-logo.png';
+
+const SPLASH_MIN_MS = 1200;
 
 const Index = () => {
   const [data, setData] = useState<PriceData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
+  const splashStart = useRef(Date.now());
 
   const fetchMetalsPrices = useCallback(async () => {
     setIsLoading(true);
