@@ -15,8 +15,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const Index = () => {
-  const [data, setData] = useState<PriceData>(mockPriceData);
-  const [isLoading, setIsLoading] = useState(false);
+  const [data, setData] = useState<PriceData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchMetalsPrices = useCallback(async () => {
     setIsLoading(true);
