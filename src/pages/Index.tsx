@@ -69,6 +69,9 @@ const Index = () => {
       setData(prev => prev ?? mockPriceData);
     } finally {
       setIsLoading(false);
+      const elapsed = Date.now() - splashStart.current;
+      const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+      setTimeout(() => setShowSplash(false), remaining);
     }
   }, []);
 
@@ -80,20 +83,12 @@ const Index = () => {
     fetchMetalsPrices();
   };
 
-  if (!data) {
+  if (showSplash || !data) {
     return (
-      <div className="min-h-screen bg-background pb-10 max-w-lg mx-auto">
-        <div className="px-5 pt-6 pb-4">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            오늘 금·은·동 시세
-          </h1>
-          <p className="text-sm text-muted-foreground mt-2">시세를 불러오는 중...</p>
-        </div>
-        <div className="space-y-4 px-5">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-32 rounded-2xl bg-muted animate-pulse" />
-          ))}
-        </div>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center max-w-lg mx-auto">
+        <img src={splashLogo} alt="금은동시세" className="w-24 h-24 mb-4 animate-pulse" />
+        <h1 className="text-xl font-bold text-foreground">오늘 금·은·동 시세</h1>
+        <p className="text-sm text-muted-foreground mt-2">시세를 불러오는 중...</p>
       </div>
     );
   }
