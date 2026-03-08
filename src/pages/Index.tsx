@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Header from '@/components/Header';
+import { useInterstitialAd } from '@/hooks/useInterstitialAd';
 import SummaryBox from '@/components/SummaryBox';
 import GoldCard from '@/components/GoldCard';
 import SilverCard from '@/components/SilverCard';
@@ -22,6 +23,8 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
   const splashStart = useRef(Date.now());
+  const adShownRef = useRef(false);
+  const { status: adStatus, showAd } = useInterstitialAd();
 
   const fetchMetalsPrices = useCallback(async () => {
     setIsLoading(true);
@@ -93,6 +96,14 @@ const Index = () => {
   useEffect(() => {
     fetchMetalsPrices();
   }, [fetchMetalsPrices]);
+
+  // 데이터 로드 + 광고 로드 완료 시 전면 광고 1회 표시
+  useEffect(() => {
+    if (!showSplash && data && adStatus === 'loaded' && !adShownRef.current) {
+      adShownRef.current = true;
+      showAd();
+    }
+  }, [showSplash, data, adStatus, showAd]);
 
   const handleRefresh = () => {
     fetchMetalsPrices();
