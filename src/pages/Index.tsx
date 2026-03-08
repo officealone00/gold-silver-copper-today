@@ -23,6 +23,8 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
   const splashStart = useRef(Date.now());
+  const adShownRef = useRef(false);
+  const { status: adStatus, showAd } = useInterstitialAd();
 
   const fetchMetalsPrices = useCallback(async () => {
     setIsLoading(true);
