@@ -47,6 +47,21 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        rise: "hsl(var(--rise))",
+        fall: "hsl(var(--fall))",
+        neutral: "hsl(var(--neutral))",
+        gold: {
+          DEFAULT: "hsl(var(--gold))",
+          bg: "hsl(var(--gold-bg))",
+        },
+        silver: {
+          DEFAULT: "hsl(var(--silver))",
+          bg: "hsl(var(--silver-bg))",
+        },
+        copper: {
+          DEFAULT: "hsl(var(--copper))",
+          bg: "hsl(var(--copper-bg))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
