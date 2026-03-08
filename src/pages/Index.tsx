@@ -11,7 +11,6 @@ import AdBanner from '@/components/AdBanner';
 import { mockPriceData } from '@/services/mockData';
 import type { PriceData } from '@/services/mockData';
 import { Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import splashLogo from '@/assets/splash-logo.png';
 
