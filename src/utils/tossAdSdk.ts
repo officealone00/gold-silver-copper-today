@@ -69,8 +69,10 @@ export async function importGoogleAdMob(): Promise<GoogleAdMobSDK | null> {
   }
 
   try {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - @apps-in-toss/web-framework는 토스 런타임에서만 사용 가능
     const mod = await import(/* @vite-ignore */ '@apps-in-toss/web-framework');
-    return mod.GoogleAdMob ?? null;
+    return (mod.GoogleAdMob as GoogleAdMobSDK) ?? null;
   } catch {
     console.warn('[Ad] @apps-in-toss/web-framework 로드 불가');
     return null;
