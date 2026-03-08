@@ -11,7 +11,7 @@ import AdBanner from '@/components/AdBanner';
 import { mockPriceData } from '@/services/mockData';
 import type { PriceData } from '@/services/mockData';
 import { Link } from 'react-router-dom';
-import { toast } from 'sonner';
+
 import splashLogo from '@/assets/splash-logo.png';
 
 const SPLASH_MIN_MS = 1200;
