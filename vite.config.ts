@@ -6,6 +6,11 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   base: "./",
+  build: {
+    rollupOptions: {
+      external: ['@apps-in-toss/web-framework'],
+    },
+  },
   server: {
     host: "::",
     port: 8080,
