@@ -11,11 +11,11 @@ import AdBanner from '@/components/AdBanner';
 import { mockPriceData } from '@/services/mockData';
 import type { PriceData } from '@/services/mockData';
 import { Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import splashLogo from '@/assets/splash-logo.png';
 
 const SPLASH_MIN_MS = 1200;
+const REQUEST_TIMEOUT_MS = 7000;
 
 const Index = () => {
   const [data, setData] = useState<PriceData | null>(null);
@@ -25,48 +25,62 @@ const Index = () => {
 
   const fetchMetalsPrices = useCallback(async () => {
     setIsLoading(true);
-    try {
-      const { data: result, error } = await supabase.functions.invoke('fetch-metals-price');
 
-      if (error) {
-        console.error('Edge function error:', error);
-        toast.error('시세를 불러오지 못했습니다. 기본 데이터를 표시합니다.');
-        setData(mockPriceData);
+    const applyFallbackData = () => {
+      setData((prev) => prev ?? mockPriceData);
+    };
+
+    const withTimeout = <T,>(promise: Promise<T>) =>
+      Promise.race([
+        promise,
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('REQUEST_TIMEOUT')), REQUEST_TIMEOUT_MS);
+        }),
+      ]);
+
+    try {
+      const { supabase } = await withTimeout(import('@/integrations/supabase/client'));
+      const { data: result, error } = await withTimeout(
+        supabase.functions.invoke('fetch-metals-price')
+      );
+
+      if (error || !result?.success) {
+        console.error('Price fetch error:', error ?? result);
+        toast.error('시세 연결이 지연되어 기본 데이터를 표시합니다.');
+        applyFallbackData();
         return;
       }
 
-      if (result?.success) {
-        const { gold, silver, copper, usdkrw, collectedAt } = result;
+      const { gold, silver, copper, usdkrw, collectedAt } = result;
 
-        setData({
-          collectedAt,
-          gold: {
-            baseDate: gold.baseDate,
-            buy: gold.krwPerDon,
-            sell: Math.round(gold.krwPerDon * 0.815),
-            prevBuy: gold.prevKrwPerDon ?? gold.krwPerDon,
-            source: gold.source,
-          },
-          silver: {
-            baseDate: silver.baseDate,
-            buy: silver.krwPerDon,
-            sell: Math.round(silver.krwPerDon * 0.66),
-            prevBuy: silver.prevKrwPerDon ?? silver.krwPerDon,
-            source: silver.source,
-          },
-          copper: {
-            baseDate: copper.baseDate,
-            tonUsd: copper.usdPerTon,
-            prevTonUsd: copper.prevUsdPerTon ?? copper.usdPerTon,
-            usdkrw: usdkrw,
-            source: copper.source,
-          },
-        });
-      }
+      setData({
+        collectedAt,
+        gold: {
+          baseDate: gold.baseDate,
+          buy: gold.krwPerDon,
+          sell: Math.round(gold.krwPerDon * 0.815),
+          prevBuy: gold.prevKrwPerDon ?? gold.krwPerDon,
+          source: gold.source,
+        },
+        silver: {
+          baseDate: silver.baseDate,
+          buy: silver.krwPerDon,
+          sell: Math.round(silver.krwPerDon * 0.66),
+          prevBuy: silver.prevKrwPerDon ?? silver.krwPerDon,
+          source: silver.source,
+        },
+        copper: {
+          baseDate: copper.baseDate,
+          tonUsd: copper.usdPerTon,
+          prevTonUsd: copper.prevUsdPerTon ?? copper.usdPerTon,
+          usdkrw: usdkrw,
+          source: copper.source,
+        },
+      });
     } catch (err) {
       console.error('Failed to fetch metals prices:', err);
-      toast.error('시세를 불러오지 못했습니다.');
-      setData(prev => prev ?? mockPriceData);
+      toast.error('시세를 불러오지 못해 기본 데이터를 표시합니다.');
+      applyFallbackData();
     } finally {
       setIsLoading(false);
       const elapsed = Date.now() - splashStart.current;
@@ -74,7 +88,6 @@ const Index = () => {
       setTimeout(() => setShowSplash(false), remaining);
     }
   }, []);
-
   useEffect(() => {
     fetchMetalsPrices();
   }, [fetchMetalsPrices]);
