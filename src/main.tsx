@@ -28,9 +28,14 @@ const renderFatal = (message: string) => {
 };
 
 window.addEventListener("error", (event) => {
-  const message = event.error instanceof Error ? event.error.message : String(event.message ?? "Unknown error");
-  console.error("Global error:", event.error ?? event.message);
-  renderFatal(`앱 로딩 오류: ${message}`);
+  // Ignore non-Error resource/script load issues (common in embedded webviews)
+  if (!(event.error instanceof Error)) {
+    console.warn("Non-fatal global error ignored:", event.message ?? event.type);
+    return;
+  }
+
+  console.error("Global error:", event.error);
+  renderFatal(`앱 로딩 오류: ${event.error.message}`);
 });
 
 window.addEventListener("unhandledrejection", (event) => {
