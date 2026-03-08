@@ -52,6 +52,8 @@ const Index = () => {
       }
 
       const { gold, silver, copper, usdkrw, collectedAt } = result;
+      const resolvePrev = (value: number | null | undefined, fallback: number) =>
+        typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
 
       setData({
         collectedAt,
@@ -59,20 +61,20 @@ const Index = () => {
           baseDate: gold.baseDate,
           buy: gold.krwPerDon,
           sell: Math.round(gold.krwPerDon * 0.815),
-          prevBuy: gold.prevKrwPerDon ?? mockPriceData.gold.prevBuy,
+          prevBuy: resolvePrev(gold.prevKrwPerDon, mockPriceData.gold.prevBuy),
           source: gold.source,
         },
         silver: {
           baseDate: silver.baseDate,
           buy: silver.krwPerDon,
           sell: Math.round(silver.krwPerDon * 0.66),
-          prevBuy: silver.prevKrwPerDon ?? mockPriceData.silver.prevBuy,
+          prevBuy: resolvePrev(silver.prevKrwPerDon, mockPriceData.silver.prevBuy),
           source: silver.source,
         },
         copper: {
           baseDate: copper.baseDate,
           tonUsd: copper.usdPerTon,
-          prevTonUsd: copper.prevUsdPerTon ?? mockPriceData.copper.prevTonUsd,
+          prevTonUsd: resolvePrev(copper.prevUsdPerTon, mockPriceData.copper.prevTonUsd),
           usdkrw: usdkrw,
           source: copper.source,
         },
