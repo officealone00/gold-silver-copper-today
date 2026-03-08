@@ -7,8 +7,8 @@ interface AdBannerProps {
   className?: string;
 }
 
-const TEST_BANNER_AD_GROUP_ID = 'ait-ad-test-interstitial-id';
-const PROD_BANNER_AD_GROUP_ID = 'ait-ad-test-interstitial-id'; // TODO: 실 배너 광고 ID 발급 후 교체
+const TEST_BANNER_AD_GROUP_ID = 'ait-ad-test-banner-id';
+const PROD_BANNER_AD_GROUP_ID = 'ait-ad-test-banner-id'; // TODO: 실 배너 광고 ID 발급 후 교체
 
 const IS_DEV = import.meta.env.DEV;
 const BANNER_AD_GROUP_ID = IS_DEV ? TEST_BANNER_AD_GROUP_ID : PROD_BANNER_AD_GROUP_ID;
