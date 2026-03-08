@@ -14,7 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      metal_prices: {
+        Row: {
+          base_date: string
+          created_at: string
+          id: string
+          krw_per_don: number
+          krw_per_gram: number
+          metal: string
+          source: string
+          usd_per_ton: number
+          usd_per_toz: number
+          usdkrw: number
+        }
+        Insert: {
+          base_date: string
+          created_at?: string
+          id?: string
+          krw_per_don?: number
+          krw_per_gram?: number
+          metal: string
+          source?: string
+          usd_per_ton?: number
+          usd_per_toz?: number
+          usdkrw?: number
+        }
+        Update: {
+          base_date?: string
+          created_at?: string
+          id?: string
+          krw_per_don?: number
+          krw_per_gram?: number
+          metal?: string
+          source?: string
+          usd_per_ton?: number
+          usd_per_toz?: number
+          usdkrw?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

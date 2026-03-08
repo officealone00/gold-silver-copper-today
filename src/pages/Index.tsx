@@ -32,32 +32,30 @@ const Index = () => {
       if (result?.success) {
         const { gold, silver, copper, usdkrw, collectedAt } = result;
 
-        setData(prev => ({
+        setData({
           collectedAt,
           gold: {
             baseDate: gold.baseDate,
             buy: gold.krwPerDon,
-            sell: Math.round(gold.krwPerDon * 0.815), // 매도가 추정
-            prevBuy: prev.gold.prevBuy, // 전일가는 DB 캐싱 필요
+            sell: Math.round(gold.krwPerDon * 0.815),
+            prevBuy: gold.prevKrwPerDon ?? gold.krwPerDon,
             source: gold.source,
           },
           silver: {
             baseDate: silver.baseDate,
             buy: silver.krwPerDon,
-            sell: Math.round(silver.krwPerDon * 0.66), // 매도가 추정
-            prevBuy: prev.silver.prevBuy,
+            sell: Math.round(silver.krwPerDon * 0.66),
+            prevBuy: silver.prevKrwPerDon ?? silver.krwPerDon,
             source: silver.source,
           },
           copper: {
             baseDate: copper.baseDate,
             tonUsd: copper.usdPerTon,
-            prevTonUsd: prev.copper.prevTonUsd,
+            prevTonUsd: copper.prevUsdPerTon ?? copper.usdPerTon,
             usdkrw: usdkrw,
             source: copper.source,
           },
-        }));
-
-        toast.success('시세가 업데이트되었습니다.');
+        });
       }
     } catch (err) {
       console.error('Failed to fetch metals prices:', err);
