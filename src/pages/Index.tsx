@@ -15,8 +15,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const Index = () => {
-  const [data, setData] = useState<PriceData>(mockPriceData);
-  const [isLoading, setIsLoading] = useState(false);
+  const [data, setData] = useState<PriceData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchMetalsPrices = useCallback(async () => {
     setIsLoading(true);
@@ -26,6 +26,7 @@ const Index = () => {
       if (error) {
         console.error('Edge function error:', error);
         toast.error('시세를 불러오지 못했습니다. 기본 데이터를 표시합니다.');
+        setData(mockPriceData);
         return;
       }
 
@@ -60,6 +61,7 @@ const Index = () => {
     } catch (err) {
       console.error('Failed to fetch metals prices:', err);
       toast.error('시세를 불러오지 못했습니다.');
+      setData(prev => prev ?? mockPriceData);
     } finally {
       setIsLoading(false);
     }
@@ -72,6 +74,24 @@ const Index = () => {
   const handleRefresh = () => {
     fetchMetalsPrices();
   };
+
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-background pb-10 max-w-lg mx-auto">
+        <div className="px-5 pt-6 pb-4">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            오늘 금·은·동 시세
+          </h1>
+          <p className="text-sm text-muted-foreground mt-2">시세를 불러오는 중...</p>
+        </div>
+        <div className="space-y-4 px-5">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-32 rounded-2xl bg-muted animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-10 max-w-lg mx-auto">
