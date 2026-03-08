@@ -79,7 +79,7 @@ const Index = () => {
       });
     } catch (err) {
       console.error('Failed to fetch metals prices:', err);
-      toast.error('시세를 불러오지 못해 기본 데이터를 표시합니다.');
+      console.warn('시세 로드 실패, 기본 데이터 사용');
       applyFallbackData();
     } finally {
       setIsLoading(false);
