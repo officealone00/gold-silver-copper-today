@@ -61,6 +61,7 @@ const Index = () => {
     } catch (err) {
       console.error('Failed to fetch metals prices:', err);
       toast.error('시세를 불러오지 못했습니다.');
+      setData(prev => prev ?? mockPriceData);
     } finally {
       setIsLoading(false);
     }
