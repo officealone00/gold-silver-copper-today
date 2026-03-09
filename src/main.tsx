@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 
 const rootElement = document.getElementById("root");
+let appBootstrapped = false;
 
 const escapeHtml = (value: string) =>
   value
@@ -15,11 +16,11 @@ const renderFatal = (message: string) => {
   if (!rootElement) return;
 
   rootElement.innerHTML = `
-    <div class="min-h-screen bg-background text-foreground flex items-center justify-center px-6">
-      <div class="w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
-        <h2 class="text-base font-semibold">앱 로딩 중 오류가 발생했습니다</h2>
-        <p class="mt-2 text-sm text-muted-foreground">${escapeHtml(message)}</p>
-        <button class="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" onclick="window.location.reload()">
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f7f7f7;color:#222;">
+      <div style="max-width:340px;width:100%;border-radius:16px;border:1px solid #e5e5e5;background:#fff;padding:24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <h2 style="font-size:16px;font-weight:600;margin:0;">앱 로딩 중 오류가 발생했습니다</h2>
+        <p style="margin:8px 0 0;font-size:14px;color:#888;">${escapeHtml(message)}</p>
+        <button onclick="window.location.reload()" style="margin-top:16px;padding:8px 16px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:14px;font-weight:500;cursor:pointer;">
           다시 시도
         </button>
       </div>
@@ -35,13 +36,22 @@ window.addEventListener("error", (event) => {
   }
 
   console.error("Global error:", event.error);
-  renderFatal(`앱 로딩 오류: ${event.error.message}`);
+
+  // Only show fatal screen if app hasn't bootstrapped yet
+  if (!appBootstrapped) {
+    renderFatal(`앱 로딩 오류: ${event.error.message}`);
+  }
 });
 
 window.addEventListener("unhandledrejection", (event) => {
   const reason = event.reason instanceof Error ? event.reason.message : String(event.reason ?? "Unknown rejection");
-  console.error("Unhandled rejection:", event.reason);
-  renderFatal(`앱 로딩 오류: ${reason}`);
+  console.warn("Unhandled rejection (non-fatal):", reason);
+
+  // Only show fatal screen if app hasn't bootstrapped yet
+  // After bootstrap, unhandled rejections (e.g. ad SDK) should not destroy the React tree
+  if (!appBootstrapped) {
+    renderFatal(`앱 초기화 실패: ${reason}`);
+  }
 });
 
 async function bootstrap() {
@@ -49,6 +59,8 @@ async function bootstrap() {
     if (!rootElement) throw new Error("root element not found");
     const { default: App } = await import("./App.tsx");
     createRoot(rootElement).render(<App />);
+    appBootstrapped = true;
+    console.log("[Bootstrap] App rendered successfully");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("Bootstrap error:", error);
