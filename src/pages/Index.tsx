@@ -42,10 +42,13 @@ const Index = () => {
       ]);
 
     try {
+      console.log('[Index] Fetching prices...');
       const { supabase } = await withTimeout(import('@/integrations/supabase/client'));
+      console.log('[Index] Supabase client loaded');
       const { data: result, error } = await withTimeout(
         supabase.functions.invoke('fetch-metals-price')
       );
+      console.log('[Index] Edge function response:', { error, success: result?.success });
 
       if (error || !result?.success) {
         console.error('Price fetch error:', error ?? result);
@@ -58,7 +61,7 @@ const Index = () => {
       const resolvePrev = (value: number | null | undefined, fallback: number) =>
         typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
 
-      setData({
+      const newData = {
         collectedAt,
         gold: {
           baseDate: gold.baseDate,
@@ -81,16 +84,22 @@ const Index = () => {
           usdkrw: usdkrw,
           source: copper.source,
         },
-      });
+      };
+      console.log('[Index] Setting data:', JSON.stringify(newData).slice(0, 200));
+      setData(newData);
     } catch (err) {
-      console.error('Failed to fetch metals prices:', err);
+      console.error('[Index] Failed to fetch metals prices:', err);
       console.warn('시세 로드 실패, 기본 데이터 사용');
       applyFallbackData();
     } finally {
       setIsLoading(false);
       const elapsed = Date.now() - splashStart.current;
       const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
-      setTimeout(() => setShowSplash(false), remaining);
+      console.log(`[Index] Finally block: elapsed=${elapsed}ms, remaining=${remaining}ms, setting showSplash=false`);
+      setTimeout(() => {
+        console.log('[Index] Splash timeout fired, hiding splash');
+        setShowSplash(false);
+      }, remaining);
     }
   }, []);
   useEffect(() => {
