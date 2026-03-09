@@ -3,7 +3,7 @@ import { importGoogleAdMob, type GoogleAdMobSDK } from '@/utils/tossAdSdk';
 
 // 테스트 광고 ID / 실 광고 ID
 const TEST_AD_GROUP_ID = 'ait-ad-test-interstitial-id';
-const PROD_AD_GROUP_ID = 'ait-ad-test-interstitial-id'; // TODO: 실 광고 ID 발급 후 교체
+const PROD_AD_GROUP_ID = 'ait.v2.live.94fb97941dd14bcb';
 
 const IS_DEV = import.meta.env.DEV;
 const AD_GROUP_ID = IS_DEV ? TEST_AD_GROUP_ID : PROD_AD_GROUP_ID;
