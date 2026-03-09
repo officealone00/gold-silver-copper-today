@@ -8,7 +8,7 @@ interface AdBannerProps {
 }
 
 const TEST_BANNER_AD_GROUP_ID = 'ait-ad-test-banner-id';
-const PROD_BANNER_AD_GROUP_ID = 'ait-ad-test-banner-id'; // TODO: 실 배너 광고 ID 발급 후 교체
+const PROD_BANNER_AD_GROUP_ID = 'ait.v2.live.8f9f433c8fb24a9b';
 
 const IS_DEV = import.meta.env.DEV;
 const BANNER_AD_GROUP_ID = IS_DEV ? TEST_BANNER_AD_GROUP_ID : PROD_BANNER_AD_GROUP_ID;
