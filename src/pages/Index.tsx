@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
-import { useInterstitialAd } from '@/hooks/useInterstitialAd';
 import SummaryBox from '@/components/SummaryBox';
 import GoldCard from '@/components/GoldCard';
 import SilverCard from '@/components/SilverCard';
@@ -8,116 +7,62 @@ import CopperCard from '@/components/CopperCard';
 import GoldCalculator from '@/components/GoldCalculator';
 import GoldSavingSimulator from '@/components/GoldSavingSimulator';
 import SilverInvestmentCalculator from '@/components/SilverInvestmentCalculator';
-import AdBanner from '@/components/AdBanner';
-import { mockPriceData } from '@/services/mockData';
-import type { PriceData } from '@/services/mockData';
+import SafeAdBanner from '@/components/SafeAdBanner';
+import SectionErrorBoundary from '@/components/SectionErrorBoundary';
+import { useMetalsPriceData } from '@/hooks/useMetalsPriceData';
+import { useSafeInterstitialAd } from '@/hooks/useSafeInterstitialAd';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { usePremium } from '@/contexts/PremiumContext';
 import { Link } from 'react-router-dom';
 
 import splashLogo from '@/assets/splash-logo.png';
 
 const SPLASH_MIN_MS = 1200;
-const REQUEST_TIMEOUT_MS = 7000;
 
 const Index = () => {
-  const [data, setData] = useState<PriceData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading, usedFallback, fetchPrices } = useMetalsPriceData();
+  const { triggerDelayedAd } = useSafeInterstitialAd();
+  const { track } = useAnalytics();
+  const { isPremium } = usePremium();
+
   const [showSplash, setShowSplash] = useState(true);
   const splashStart = useRef(Date.now());
-  const adShownRef = useRef(false);
-  const { status: adStatus, showAd } = useInterstitialAd();
+  const adTriggered = useRef(false);
 
-  const fetchMetalsPrices = useCallback(async () => {
-    setIsLoading(true);
+  // Initial fetch
+  useEffect(() => {
+    fetchPrices();
+  }, [fetchPrices]);
 
-    const applyFallbackData = () => {
-      setData((prev) => prev ?? mockPriceData);
-    };
-
-    const withTimeout = <T,>(promise: Promise<T>) =>
-      Promise.race([
-        promise,
-        new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('REQUEST_TIMEOUT')), REQUEST_TIMEOUT_MS);
-        }),
-      ]);
-
-    try {
-      console.log('[Index] Fetching prices...');
-      const { supabase } = await withTimeout(import('@/integrations/supabase/client'));
-      console.log('[Index] Supabase client loaded');
-      const { data: result, error } = await withTimeout(
-        supabase.functions.invoke('fetch-metals-price')
-      );
-      console.log('[Index] Edge function response:', { error, success: result?.success });
-
-      if (error || !result?.success) {
-        console.error('Price fetch error:', error ?? result);
-        console.warn('시세 연결 지연, 기본 데이터 사용');
-        applyFallbackData();
-        return;
-      }
-
-      const { gold, silver, copper, usdkrw, collectedAt } = result;
-      const resolvePrev = (value: number | null | undefined, fallback: number) =>
-        typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
-
-      const newData = {
-        collectedAt,
-        gold: {
-          baseDate: gold.baseDate,
-          buy: gold.krwPerDon,
-          sell: Math.round(gold.krwPerDon * 0.815),
-          prevBuy: resolvePrev(gold.prevKrwPerDon, mockPriceData.gold.prevBuy),
-          source: gold.source,
-        },
-        silver: {
-          baseDate: silver.baseDate,
-          buy: silver.krwPerDon,
-          sell: Math.round(silver.krwPerDon * 0.66),
-          prevBuy: resolvePrev(silver.prevKrwPerDon, mockPriceData.silver.prevBuy),
-          source: silver.source,
-        },
-        copper: {
-          baseDate: copper.baseDate,
-          tonUsd: copper.usdPerTon,
-          prevTonUsd: resolvePrev(copper.prevUsdPerTon, mockPriceData.copper.prevTonUsd),
-          usdkrw: usdkrw,
-          source: copper.source,
-        },
-      };
-      console.log('[Index] Setting data:', JSON.stringify(newData).slice(0, 200));
-      setData(newData);
-    } catch (err) {
-      console.error('[Index] Failed to fetch metals prices:', err);
-      console.warn('시세 로드 실패, 기본 데이터 사용');
-      applyFallbackData();
-    } finally {
-      setIsLoading(false);
+  // Hide splash after data loads (with minimum display time)
+  useEffect(() => {
+    if (!isLoading) {
       const elapsed = Date.now() - splashStart.current;
       const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
-      console.log(`[Index] Finally block: elapsed=${elapsed}ms, remaining=${remaining}ms, setting showSplash=false`);
-      setTimeout(() => {
-        console.log('[Index] Splash timeout fired, hiding splash');
-        setShowSplash(false);
-      }, remaining);
+      const timer = setTimeout(() => setShowSplash(false), remaining);
+      return () => clearTimeout(timer);
     }
-  }, []);
-  useEffect(() => {
-    fetchMetalsPrices();
-  }, [fetchMetalsPrices]);
+  }, [isLoading]);
 
-  // 데이터 로드 + 광고 로드 완료 시 전면 광고 1회 표시
+  // Track home view + trigger interstitial after main UI renders
   useEffect(() => {
-    if (!showSplash && data && adStatus === 'loaded' && !adShownRef.current) {
-      adShownRef.current = true;
-      showAd();
+    if (!showSplash && data && !adTriggered.current) {
+      adTriggered.current = true;
+      track('view_home');
+      if (usedFallback) track('fallback_data_used');
+      // Only show interstitial for free users, delayed
+      if (!isPremium) {
+        triggerDelayedAd();
+      }
     }
-  }, [showSplash, data, adStatus, showAd]);
+  }, [showSplash, data, isPremium, triggerDelayedAd, track, usedFallback]);
 
   const handleRefresh = () => {
-    fetchMetalsPrices();
+    track('refresh_prices');
+    fetchPrices();
   };
 
+  // Splash screen
   if (showSplash || !data) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center max-w-lg mx-auto">
@@ -133,26 +78,60 @@ const Index = () => {
       <Header collectedAt={data.collectedAt} onRefresh={handleRefresh} />
 
       <div className="space-y-4">
-        <SummaryBox data={data} />
+        <SectionErrorBoundary sectionName="SummaryBox">
+          <SummaryBox data={data} />
+        </SectionErrorBoundary>
 
-        <GoldCard data={data.gold} />
-        <SilverCard data={data.silver} />
-        <AdBanner slot="between-price-cards" size="medium" />
-        <CopperCard data={data.copper} />
+        <SectionErrorBoundary sectionName="GoldCard">
+          <GoldCard data={data.gold} />
+        </SectionErrorBoundary>
 
-        <AdBanner slot="before-calculators" size="large" />
+        <SectionErrorBoundary sectionName="SilverCard">
+          <SilverCard data={data.silver} />
+        </SectionErrorBoundary>
 
-        <GoldCalculator goldData={data.gold} />
-        <GoldSavingSimulator goldData={data.gold} />
+        {!isPremium && (
+          <SectionErrorBoundary sectionName="AdBanner-between-cards">
+            <SafeAdBanner slot="between-price-cards" size="medium" />
+          </SectionErrorBoundary>
+        )}
 
-        <AdBanner slot="between-calculators" size="medium" />
+        <SectionErrorBoundary sectionName="CopperCard">
+          <CopperCard data={data.copper} />
+        </SectionErrorBoundary>
 
-        <SilverInvestmentCalculator silverData={data.silver} />
+        {!isPremium && (
+          <SectionErrorBoundary sectionName="AdBanner-before-calc">
+            <SafeAdBanner slot="before-calculators" size="large" />
+          </SectionErrorBoundary>
+        )}
+
+        <SectionErrorBoundary sectionName="GoldCalculator">
+          <GoldCalculator goldData={data.gold} />
+        </SectionErrorBoundary>
+
+        <SectionErrorBoundary sectionName="GoldSavingSimulator">
+          <GoldSavingSimulator goldData={data.gold} />
+        </SectionErrorBoundary>
+
+        {!isPremium && (
+          <SectionErrorBoundary sectionName="AdBanner-between-calc">
+            <SafeAdBanner slot="between-calculators" size="medium" />
+          </SectionErrorBoundary>
+        )}
+
+        <SectionErrorBoundary sectionName="SilverInvestmentCalculator">
+          <SilverInvestmentCalculator silverData={data.silver} />
+        </SectionErrorBoundary>
       </div>
 
-      <div className="mt-6">
-        <AdBanner slot="footer" size="small" />
-      </div>
+      {!isPremium && (
+        <div className="mt-6">
+          <SectionErrorBoundary sectionName="AdBanner-footer">
+            <SafeAdBanner slot="footer" size="small" />
+          </SectionErrorBoundary>
+        </div>
+      )}
 
       <div className="mt-4 px-5 space-y-3">
         <p className="text-xs text-muted-foreground leading-relaxed">
