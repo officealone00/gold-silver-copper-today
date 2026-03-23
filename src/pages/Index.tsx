@@ -15,7 +15,7 @@ import { useAnalytics } from '@/hooks/useAnalytics';
 import { usePremium } from '@/contexts/PremiumContext';
 import { Link } from 'react-router-dom';
 
-import splashLogo from '@/assets/splash-logo.png';
+const splashLogo = 'https://static.toss.im/appsintoss/24163/f26ec7d5-f75a-48b5-ab03-d2a53908cec9.png';
 
 const SPLASH_MIN_MS = 1200;
 
