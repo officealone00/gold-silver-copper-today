@@ -48,12 +48,14 @@ async function fetchFromMetalpriceAPI(apiKey: string): Promise<ParsedPrices> {
     throw new Error(`MetalpriceAPI returned success=false: ${rawText.substring(0, 300)}`);
   }
 
-  // rates: 1 USD = X unit → price per oz = 1 / rate
-  const goldUsdPerToz = data.rates.USDXAU ? 1 / data.rates.USDXAU : 0;
-  const silverUsdPerToz = data.rates.USDXAG ? 1 / data.rates.USDXAG : 0;
-  // Copper not available on free plan — use 0, will be filled from DB previous data
+  // rates.XAU = how many troy oz per 1 USD (e.g. 0.0002203)
+  // So gold price per oz = 1 / XAU
+  const goldUsdPerToz = data.rates.XAU ? 1 / data.rates.XAU : 0;
+  const silverUsdPerToz = data.rates.XAG ? 1 / data.rates.XAG : 0;
+  // Copper not available on free plan
   const copperUsdPerToz = 0;
-  const krwRate = data.rates.USDKRW || 1340;
+  // rates.KRW = how many KRW per 1 USD (e.g. 1505)
+  const krwRate = data.rates.KRW || 1340;
 
   console.log('[MetalpriceAPI] Parsed:', { goldUsdPerToz, silverUsdPerToz, krwRate });
 
