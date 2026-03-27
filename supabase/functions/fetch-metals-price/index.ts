@@ -35,14 +35,16 @@ async function fetchFromMetalpriceAPI(apiKey: string): Promise<ParsedPrices> {
   console.log('[MetalpriceAPI] Fetching...');
 
   const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  const rawText = await res.text();
+  console.log('[MetalpriceAPI] Status:', res.status, 'Body:', rawText.substring(0, 500));
+
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`MetalpriceAPI error [${res.status}]: ${errText}`);
+    throw new Error(`MetalpriceAPI error [${res.status}]: ${rawText}`);
   }
 
-  const data: MetalPriceAPIResponse = await res.json();
+  const data: MetalPriceAPIResponse = JSON.parse(rawText);
   if (!data.success) {
-    throw new Error('MetalpriceAPI returned success=false');
+    throw new Error(`MetalpriceAPI returned success=false: ${rawText.substring(0, 300)}`);
   }
 
   // rates: 1 USD = X unit → price per oz = 1 / rate
