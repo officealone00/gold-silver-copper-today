@@ -31,7 +31,8 @@ interface ParsedPrices {
 
 // ── Fetch from MetalpriceAPI (primary) ─────────────────
 async function fetchFromMetalpriceAPI(apiKey: string): Promise<ParsedPrices> {
-  const url = 'https://api.metalpriceapi.com/v1/latest?api_key=' + apiKey + '&base=USD&currencies=XAU,XAG,XCU,KRW';
+  // XCU (copper) requires a paid plan, so we only request XAU, XAG, KRW
+  const url = 'https://api.metalpriceapi.com/v1/latest?api_key=' + apiKey + '&base=USD&currencies=XAU,XAG,KRW';
   console.log('[MetalpriceAPI] Fetching...');
 
   const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
@@ -50,10 +51,11 @@ async function fetchFromMetalpriceAPI(apiKey: string): Promise<ParsedPrices> {
   // rates: 1 USD = X unit → price per oz = 1 / rate
   const goldUsdPerToz = data.rates.USDXAU ? 1 / data.rates.USDXAU : 0;
   const silverUsdPerToz = data.rates.USDXAG ? 1 / data.rates.USDXAG : 0;
-  const copperUsdPerToz = data.rates.USDXCU ? 1 / data.rates.USDXCU : 0;
+  // Copper not available on free plan — use 0, will be filled from DB previous data
+  const copperUsdPerToz = 0;
   const krwRate = data.rates.USDKRW || 1340;
 
-  console.log('[MetalpriceAPI] Parsed:', { goldUsdPerToz, silverUsdPerToz, copperUsdPerToz, krwRate });
+  console.log('[MetalpriceAPI] Parsed:', { goldUsdPerToz, silverUsdPerToz, krwRate });
 
   return { goldUsdPerToz, silverUsdPerToz, copperUsdPerToz, krwRate, source: 'MetalpriceAPI' };
 }
