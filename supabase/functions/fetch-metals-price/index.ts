@@ -118,7 +118,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { goldUsdPerToz, silverUsdPerToz, copperUsdPerToz, krwRate, source } = prices;
+    let { goldUsdPerToz, silverUsdPerToz, copperUsdPerToz, krwRate, source } = prices;
+
+    // If copper not available (MetalpriceAPI free plan), use last known value from DB
+    if (copperUsdPerToz === 0) {
+      const { data: lastCopper } = await supabase
+        .from('metal_prices')
+        .select('usd_per_toz, usd_per_ton')
+        .eq('metal', 'copper')
+        .order('base_date', { ascending: false })
+        .limit(1)
+        .single();
+      if (lastCopper) {
+        copperUsdPerToz = lastCopper.usd_per_toz > 0
+          ? Number(lastCopper.usd_per_toz)
+          : Number(lastCopper.usd_per_ton) / 32150.75;
+        console.log('[Copper] Using last known value from DB:', copperUsdPerToz);
+      }
+    }
 
     // Convert units
     const goldKrwPerGram = (goldUsdPerToz / 31.1034768) * krwRate;
