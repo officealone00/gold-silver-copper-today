@@ -31,27 +31,33 @@ interface ParsedPrices {
 
 // ── Fetch from MetalpriceAPI (primary) ─────────────────
 async function fetchFromMetalpriceAPI(apiKey: string): Promise<ParsedPrices> {
-  const url = 'https://api.metalpriceapi.com/v1/latest?api_key=' + apiKey + '&base=USD&currencies=XAU,XAG,XCU,KRW';
+  // XCU (copper) requires a paid plan, so we only request XAU, XAG, KRW
+  const url = 'https://api.metalpriceapi.com/v1/latest?api_key=' + apiKey + '&base=USD&currencies=XAU,XAG,KRW';
   console.log('[MetalpriceAPI] Fetching...');
 
   const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  const rawText = await res.text();
+  console.log('[MetalpriceAPI] Status:', res.status, 'Body:', rawText.substring(0, 500));
+
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`MetalpriceAPI error [${res.status}]: ${errText}`);
+    throw new Error(`MetalpriceAPI error [${res.status}]: ${rawText}`);
   }
 
-  const data: MetalPriceAPIResponse = await res.json();
+  const data: MetalPriceAPIResponse = JSON.parse(rawText);
   if (!data.success) {
-    throw new Error('MetalpriceAPI returned success=false');
+    throw new Error(`MetalpriceAPI returned success=false: ${rawText.substring(0, 300)}`);
   }
 
-  // rates: 1 USD = X unit → price per oz = 1 / rate
-  const goldUsdPerToz = data.rates.USDXAU ? 1 / data.rates.USDXAU : 0;
-  const silverUsdPerToz = data.rates.USDXAG ? 1 / data.rates.USDXAG : 0;
-  const copperUsdPerToz = data.rates.USDXCU ? 1 / data.rates.USDXCU : 0;
-  const krwRate = data.rates.USDKRW || 1340;
+  // rates.XAU = how many troy oz per 1 USD (e.g. 0.0002203)
+  // So gold price per oz = 1 / XAU
+  const goldUsdPerToz = data.rates.XAU ? 1 / data.rates.XAU : 0;
+  const silverUsdPerToz = data.rates.XAG ? 1 / data.rates.XAG : 0;
+  // Copper not available on free plan
+  const copperUsdPerToz = 0;
+  // rates.KRW = how many KRW per 1 USD (e.g. 1505)
+  const krwRate = data.rates.KRW || 1340;
 
-  console.log('[MetalpriceAPI] Parsed:', { goldUsdPerToz, silverUsdPerToz, copperUsdPerToz, krwRate });
+  console.log('[MetalpriceAPI] Parsed:', { goldUsdPerToz, silverUsdPerToz, krwRate });
 
   return { goldUsdPerToz, silverUsdPerToz, copperUsdPerToz, krwRate, source: 'MetalpriceAPI' };
 }
@@ -114,7 +120,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { goldUsdPerToz, silverUsdPerToz, copperUsdPerToz, krwRate, source } = prices;
+    let { goldUsdPerToz, silverUsdPerToz, copperUsdPerToz, krwRate, source } = prices;
+
+    // If copper not available (MetalpriceAPI free plan), use last known value from DB
+    if (copperUsdPerToz === 0) {
+      const { data: lastCopper } = await supabase
+        .from('metal_prices')
+        .select('usd_per_toz, usd_per_ton')
+        .eq('metal', 'copper')
+        .order('base_date', { ascending: false })
+        .limit(1)
+        .single();
+      if (lastCopper) {
+        copperUsdPerToz = lastCopper.usd_per_toz > 0
+          ? Number(lastCopper.usd_per_toz)
+          : Number(lastCopper.usd_per_ton) / 32150.75;
+        console.log('[Copper] Using last known value from DB:', copperUsdPerToz);
+      }
+    }
 
     // Convert units
     const goldKrwPerGram = (goldUsdPerToz / 31.1034768) * krwRate;
