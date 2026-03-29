@@ -29,43 +29,10 @@ interface ParsedPrices {
   source: string;
 }
 
-// ── Fetch from MetalpriceAPI (primary) ─────────────────
-async function fetchFromMetalpriceAPI(apiKey: string): Promise<ParsedPrices> {
-  // XCU (copper) requires a paid plan, so we only request XAU, XAG, KRW
-  const url = 'https://api.metalpriceapi.com/v1/latest?api_key=' + apiKey + '&base=USD&currencies=XAU,XAG,KRW';
-  console.log('[MetalpriceAPI] Fetching...');
-
-  const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-  const rawText = await res.text();
-  console.log('[MetalpriceAPI] Status:', res.status, 'Body:', rawText.substring(0, 500));
-
-  if (!res.ok) {
-    throw new Error(`MetalpriceAPI error [${res.status}]: ${rawText}`);
-  }
-
-  const data: MetalPriceAPIResponse = JSON.parse(rawText);
-  if (!data.success) {
-    throw new Error(`MetalpriceAPI returned success=false: ${rawText.substring(0, 300)}`);
-  }
-
-  // rates.XAU = how many troy oz per 1 USD (e.g. 0.0002203)
-  // So gold price per oz = 1 / XAU
-  const goldUsdPerToz = data.rates.XAU ? 1 / data.rates.XAU : 0;
-  const silverUsdPerToz = data.rates.XAG ? 1 / data.rates.XAG : 0;
-  // Copper not available on free plan
-  const copperUsdPerToz = 0;
-  // rates.KRW = how many KRW per 1 USD (e.g. 1505)
-  const krwRate = data.rates.KRW || 1340;
-
-  console.log('[MetalpriceAPI] Parsed:', { goldUsdPerToz, silverUsdPerToz, krwRate });
-
-  return { goldUsdPerToz, silverUsdPerToz, copperUsdPerToz, krwRate, source: 'MetalpriceAPI' };
-}
-
-// ── Fetch from metals.dev (fallback) ───────────────────
+// ── Fetch from metals.dev (primary) ────────────────────
 async function fetchFromMetalsDev(apiKey: string): Promise<ParsedPrices> {
   const url = `https://api.metals.dev/v1/latest?api_key=${apiKey}&currency=USD&unit=toz`;
-  console.log('[metals.dev] Fetching (fallback)...');
+  console.log('[metals.dev] Fetching (primary)...');
 
   const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
   if (!res.ok) {
@@ -90,6 +57,90 @@ async function fetchFromMetalsDev(apiKey: string): Promise<ParsedPrices> {
   };
 }
 
+// ── Fetch from MetalpriceAPI (fallback) ────────────────
+async function fetchFromMetalpriceAPI(apiKey: string): Promise<ParsedPrices> {
+  const url = 'https://api.metalpriceapi.com/v1/latest?api_key=' + apiKey + '&base=USD&currencies=XAU,XAG,KRW';
+  console.log('[MetalpriceAPI] Fetching (fallback)...');
+
+  const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  const rawText = await res.text();
+  console.log('[MetalpriceAPI] Status:', res.status, 'Body:', rawText.substring(0, 500));
+
+  if (!res.ok) {
+    throw new Error(`MetalpriceAPI error [${res.status}]: ${rawText}`);
+  }
+
+  const data: MetalPriceAPIResponse = JSON.parse(rawText);
+  if (!data.success) {
+    throw new Error(`MetalpriceAPI returned success=false: ${rawText.substring(0, 300)}`);
+  }
+
+  const goldUsdPerToz = data.rates.XAU ? 1 / data.rates.XAU : 0;
+  const silverUsdPerToz = data.rates.XAG ? 1 / data.rates.XAG : 0;
+  const copperUsdPerToz = 0; // not available on free plan
+  const krwRate = data.rates.KRW || 1340;
+
+  console.log('[MetalpriceAPI] Parsed:', { goldUsdPerToz, silverUsdPerToz, krwRate });
+
+  return { goldUsdPerToz, silverUsdPerToz, copperUsdPerToz, krwRate, source: 'MetalpriceAPI' };
+}
+
+// ── Build response from DB rows ────────────────────────
+function buildResponseFromDbRows(todayRows: any[], prevMap: Record<string, any>, today: string) {
+  const goldRow = todayRows.find((r: any) => r.metal === 'gold');
+  const silverRow = todayRows.find((r: any) => r.metal === 'silver');
+  const copperRow = todayRows.find((r: any) => r.metal === 'copper');
+
+  return {
+    success: true,
+    collectedAt: new Date().toISOString(),
+    usdkrw: goldRow ? Number(goldRow.usdkrw) : 0,
+    source: goldRow?.source || 'DB cache',
+    gold: {
+      baseDate: today,
+      usdPerToz: goldRow ? Number(goldRow.usd_per_toz) : 0,
+      krwPerGram: goldRow ? Number(goldRow.krw_per_gram) : 0,
+      krwPerDon: goldRow ? Number(goldRow.krw_per_don) : 0,
+      prevKrwPerDon: prevMap.gold ? Number(prevMap.gold.krw_per_don) : null,
+      source: `${goldRow?.source || 'DB cache'} (국제시세)`,
+    },
+    silver: {
+      baseDate: today,
+      usdPerToz: silverRow ? Number(silverRow.usd_per_toz) : 0,
+      krwPerGram: silverRow ? Number(silverRow.krw_per_gram) : 0,
+      krwPerDon: silverRow ? Number(silverRow.krw_per_don) : 0,
+      prevKrwPerDon: prevMap.silver ? Number(prevMap.silver.krw_per_don) : null,
+      source: `${silverRow?.source || 'DB cache'} (국제시세)`,
+    },
+    copper: {
+      baseDate: today,
+      usdPerTon: copperRow ? Number(copperRow.usd_per_ton) : 0,
+      prevUsdPerTon: prevMap.copper ? Number(prevMap.copper.usd_per_ton) : null,
+      source: `${copperRow?.source || 'DB cache'} (LME)`,
+    },
+  };
+}
+
+// ── Get previous day prices ────────────────────────────
+async function getPrevPrices(supabase: any, today: string) {
+  const { data: prevPrices } = await supabase
+    .from('metal_prices')
+    .select('*')
+    .lt('base_date', today)
+    .order('base_date', { ascending: false })
+    .limit(3);
+
+  const prevMap: Record<string, any> = {};
+  if (prevPrices) {
+    for (const p of prevPrices) {
+      if (!prevMap[p.metal]) {
+        prevMap[p.metal] = p;
+      }
+    }
+  }
+  return prevMap;
+}
+
 // ── Main handler ───────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -101,28 +152,51 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Try MetalpriceAPI first, fall back to metals.dev
+    const today = new Date().toISOString().split('T')[0];
+
+    // ── Step 1: Check DB cache ─────────────────────────
+    const { data: todayRows } = await supabase
+      .from('metal_prices')
+      .select('*')
+      .eq('base_date', today);
+
+    const hasGold = todayRows?.some((r: any) => r.metal === 'gold');
+    const hasSilver = todayRows?.some((r: any) => r.metal === 'silver');
+    const hasCopper = todayRows?.some((r: any) => r.metal === 'copper');
+
+    if (hasGold && hasSilver && hasCopper) {
+      console.log('[Cache HIT] Returning today\'s data from DB without API call');
+      const prevMap = await getPrevPrices(supabase, today);
+      const result = buildResponseFromDbRows(todayRows!, prevMap, today);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('[Cache MISS] Fetching from external API...');
+
+    // ── Step 2: Fetch from APIs (metals.dev primary, MetalpriceAPI fallback) ──
     let prices: ParsedPrices;
-    const metalpriceApiKey = Deno.env.get('METALPRICEAPI_KEY');
     const metalsDevApiKey = Deno.env.get('METALS_DEV_API_KEY');
+    const metalpriceApiKey = Deno.env.get('METALPRICEAPI_KEY');
 
     try {
-      if (!metalpriceApiKey) throw new Error('METALPRICEAPI_KEY not configured');
-      prices = await fetchFromMetalpriceAPI(metalpriceApiKey);
+      if (!metalsDevApiKey) throw new Error('METALS_DEV_API_KEY not configured');
+      prices = await fetchFromMetalsDev(metalsDevApiKey);
     } catch (primaryErr) {
-      console.warn('[Primary API failed]', primaryErr instanceof Error ? primaryErr.message : primaryErr);
+      console.warn('[Primary API (metals.dev) failed]', primaryErr instanceof Error ? primaryErr.message : primaryErr);
       try {
-        if (!metalsDevApiKey) throw new Error('METALS_DEV_API_KEY not configured');
-        prices = await fetchFromMetalsDev(metalsDevApiKey);
+        if (!metalpriceApiKey) throw new Error('METALPRICEAPI_KEY not configured');
+        prices = await fetchFromMetalpriceAPI(metalpriceApiKey);
       } catch (fallbackErr) {
-        console.error('[Fallback API also failed]', fallbackErr instanceof Error ? fallbackErr.message : fallbackErr);
+        console.error('[Fallback API (MetalpriceAPI) also failed]', fallbackErr instanceof Error ? fallbackErr.message : fallbackErr);
         throw new Error('All price APIs failed');
       }
     }
 
     let { goldUsdPerToz, silverUsdPerToz, copperUsdPerToz, krwRate, source } = prices;
 
-    // If copper not available (MetalpriceAPI free plan), use last known value from DB
+    // If copper not available, use last known value from DB
     if (copperUsdPerToz === 0) {
       const { data: lastCopper } = await supabase
         .from('metal_prices')
@@ -145,8 +219,6 @@ Deno.serve(async (req) => {
     const silverKrwPerGram = (silverUsdPerToz / 31.1034768) * krwRate;
     const silverKrwPerDon = silverKrwPerGram * 3.75;
     const copperUsdPerTon = copperUsdPerToz * 32150.75;
-
-    const today = new Date().toISOString().split('T')[0];
 
     // Upsert 3 rows into metal_prices
     const metals = [
@@ -190,22 +262,7 @@ Deno.serve(async (req) => {
       console.error('DB upsert error:', upsertError);
     }
 
-    // Get previous day's prices
-    const { data: prevPrices } = await supabase
-      .from('metal_prices')
-      .select('*')
-      .lt('base_date', today)
-      .order('base_date', { ascending: false })
-      .limit(3);
-
-    const prevMap: Record<string, any> = {};
-    if (prevPrices) {
-      for (const p of prevPrices) {
-        if (!prevMap[p.metal]) {
-          prevMap[p.metal] = p;
-        }
-      }
-    }
+    const prevMap = await getPrevPrices(supabase, today);
 
     const result = {
       success: true,
