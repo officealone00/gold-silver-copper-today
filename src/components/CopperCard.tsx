@@ -22,7 +22,7 @@ const CopperCard = ({ data }: CopperCardProps) => {
         </div>
         <div>
           <h2 className="text-base font-bold">오늘 동 시세</h2>
-          <p className="text-xs text-muted-foreground">{data.source} · 런던금속거래소</p>
+          <p className="text-xs text-muted-foreground">FRED · 미국 연방준비은행</p>
         </div>
       </div>
 
