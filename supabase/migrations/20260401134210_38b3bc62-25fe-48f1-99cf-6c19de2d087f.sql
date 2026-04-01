@@ -1,0 +1,1 @@
+DELETE FROM metal_prices WHERE metal = 'copper' AND base_date = CURRENT_DATE;
