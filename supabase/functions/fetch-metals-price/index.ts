@@ -219,20 +219,34 @@ Deno.serve(async (req) => {
 
     let { goldUsdPerToz, silverUsdPerToz, copperUsdPerToz, krwRate, source } = prices;
 
-    // If copper not available, use last known value from DB
+    // If copper not available, try FRED API, then fall back to DB
     if (copperUsdPerToz === 0) {
-      const { data: lastCopper } = await supabase
-        .from('metal_prices')
-        .select('usd_per_toz, usd_per_ton')
-        .eq('metal', 'copper')
-        .order('base_date', { ascending: false })
-        .limit(1)
-        .single();
-      if (lastCopper) {
-        copperUsdPerToz = lastCopper.usd_per_toz > 0
-          ? Number(lastCopper.usd_per_toz)
-          : Number(lastCopper.usd_per_ton) / 32150.75;
-        console.log('[Copper] Using last known value from DB:', copperUsdPerToz);
+      const fredApiKey = Deno.env.get('FRED_API_KEY');
+      if (fredApiKey) {
+        try {
+          copperUsdPerToz = await fetchCopperFromFRED(fredApiKey);
+          source = source; // keep original source for gold/silver
+          console.log('[Copper] Got fresh price from FRED');
+        } catch (fredErr) {
+          console.warn('[FRED copper failed]', fredErr instanceof Error ? fredErr.message : fredErr);
+        }
+      }
+
+      // Still 0? Use last known DB value
+      if (copperUsdPerToz === 0) {
+        const { data: lastCopper } = await supabase
+          .from('metal_prices')
+          .select('usd_per_toz, usd_per_ton')
+          .eq('metal', 'copper')
+          .order('base_date', { ascending: false })
+          .limit(1)
+          .single();
+        if (lastCopper) {
+          copperUsdPerToz = lastCopper.usd_per_toz > 0
+            ? Number(lastCopper.usd_per_toz)
+            : Number(lastCopper.usd_per_ton) / 32150.75;
+          console.log('[Copper] Using last known value from DB:', copperUsdPerToz);
+        }
       }
     }
 
