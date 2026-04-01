@@ -57,6 +57,29 @@ async function fetchFromMetalsDev(apiKey: string): Promise<ParsedPrices> {
   };
 }
 
+// ── Fetch copper from FRED (dedicated copper source) ───
+async function fetchCopperFromFRED(apiKey: string): Promise<number> {
+  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=PCOPPUSDM&api_key=${apiKey}&file_type=json&sort_order=desc&limit=1`;
+  console.log('[FRED] Fetching copper price...');
+
+  const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  if (!res.ok) {
+    throw new Error(`FRED API error [${res.status}]`);
+  }
+
+  const data = await res.json();
+  const value = Number(data.observations?.[0]?.value);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error('FRED copper value invalid');
+  }
+
+  // FRED returns USD per pound → convert to USD per troy oz
+  // 1 troy oz = 0.0685714 pounds
+  const usdPerToz = value * 0.0685714;
+  console.log('[FRED] Copper USD/lb:', value, '→ USD/toz:', usdPerToz);
+  return usdPerToz;
+}
+
 // ── Fetch from MetalpriceAPI (fallback) ────────────────
 async function fetchFromMetalpriceAPI(apiKey: string): Promise<ParsedPrices> {
   const url = 'https://api.metalpriceapi.com/v1/latest?api_key=' + apiKey + '&base=USD&currencies=XAU,XAG,KRW';
