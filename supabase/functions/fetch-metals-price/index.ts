@@ -73,10 +73,10 @@ async function fetchCopperFromFRED(apiKey: string): Promise<number> {
     throw new Error('FRED copper value invalid');
   }
 
-  // FRED returns USD per pound → convert to USD per troy oz
-  // 1 troy oz = 0.0685714 pounds
-  const usdPerToz = value * 0.0685714;
-  console.log('[FRED] Copper USD/lb:', value, '→ USD/toz:', usdPerToz);
+  // FRED PCOPPUSDM returns USD per metric ton → convert to USD per troy oz
+  // 1 metric ton ≈ 32150.75 troy oz
+  const usdPerToz = value / 32150.75;
+  console.log('[FRED] Copper USD/metric ton:', value, '→ USD/toz:', usdPerToz);
   return usdPerToz;
 }
 
