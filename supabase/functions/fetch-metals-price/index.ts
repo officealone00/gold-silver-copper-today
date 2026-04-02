@@ -100,7 +100,7 @@ async function fetchFromMetalpriceAPI(apiKey: string): Promise<ParsedPrices> {
 
   const goldUsdPerToz = data.rates.XAU ? 1 / data.rates.XAU : 0;
   const silverUsdPerToz = data.rates.XAG ? 1 / data.rates.XAG : 0;
-  const copperUsdPerToz = data.rates.XCU ? 1 / data.rates.XCU : 0; // 금/은/동 모두 지원
+  const copperUsdPerToz = 0; // 무료 플랜 미지원 - FRED/DB 폴백 사용
   const krwRate = data.rates.KRW || 1340;
 
   console.log('[MetalpriceAPI] Parsed:', { goldUsdPerToz, silverUsdPerToz, krwRate });
