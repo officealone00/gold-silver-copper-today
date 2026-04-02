@@ -82,7 +82,7 @@ async function fetchCopperFromFRED(apiKey: string): Promise<number> {
 
 // ── Fetch from MetalpriceAPI (fallback) ────────────────
 async function fetchFromMetalpriceAPI(apiKey: string): Promise<ParsedPrices> {
-  const url = 'https://api.metalpriceapi.com/v1/latest?api_key=' + apiKey + '&base=USD&currencies=XAU,XAG,KRW';
+  const url = 'https://api.metalpriceapi.com/v1/latest?api_key=' + apiKey + '&base=USD&currencies=XAU,XAG,XCU,KRW';
   console.log('[MetalpriceAPI] Fetching (fallback)...');
 
   const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
