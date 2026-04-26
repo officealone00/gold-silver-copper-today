@@ -14,6 +14,10 @@ const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/120.0 Safari/537.36';
 
+const KOREA_GOLDX_MOBILE_UA =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 ' +
+  '(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+
 const TIMEOUT_MS = 7000;
 
 function withTimeout<T>(p: Promise<T>, ms = TIMEOUT_MS): Promise<T> {
@@ -36,17 +40,49 @@ interface KoreaGoldX {
   silverPrevBuy: number;
 }
 
+function extractCookieHeader(headers: Headers): string {
+  const getSetCookie = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
+  const setCookies = getSetCookie
+    ? getSetCookie.call(headers)
+    : (headers.get('set-cookie') || '')
+        .split(/,(?=\s*[^;,=\s]+=[^;,]+)/)
+        .map((cookie) => cookie.trim())
+        .filter(Boolean);
+
+  return setCookies
+    .map((cookie) => cookie.split(';')[0]?.trim())
+    .filter(Boolean)
+    .join('; ');
+}
+
 async function fetchKoreaGoldX(): Promise<KoreaGoldX> {
+  const mainRes = await fetch('https://m.koreagoldx.co.kr/', {
+    method: 'GET',
+    headers: {
+      'User-Agent': KOREA_GOLDX_MOBILE_UA,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'ko-KR,ko;q=0.9',
+    },
+  });
+  if (!mainRes.ok) throw new Error(`koreagoldx main HTTP ${mainRes.status}`);
+
+  await mainRes.text();
+  const cookieHeader = extractCookieHeader(mainRes.headers);
+
   const res = await fetch('https://m.koreagoldx.co.kr/api/main', {
     method: 'POST',
     headers: {
-      'User-Agent': UA,
+      'User-Agent': KOREA_GOLDX_MOBILE_UA,
       'Accept': 'application/json, text/javascript, */*; q=0.01',
       'Accept-Language': 'ko-KR,ko;q=0.9',
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
       'X-Requested-With': 'XMLHttpRequest',
       'Referer': 'https://m.koreagoldx.co.kr/',
       'Origin': 'https://m.koreagoldx.co.kr',
+      'Sec-Fetch-Site': 'same-origin',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Dest': 'empty',
+      'Cookie': cookieHeader,
     },
     body: '',
   });
