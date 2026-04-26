@@ -22,10 +22,9 @@ const CopperCard = ({ data }: CopperCardProps) => {
         </div>
         <div>
           <h2 className="text-base font-bold">오늘 동 시세</h2>
-          <p className="text-xs text-muted-foreground">FRED · 미국 연방준비은행</p>
+          <p className="text-xs text-muted-foreground">{data.source} 기준</p>
         </div>
       </div>
-
       <div className="space-y-3">
         <div className="flex justify-between items-center">
           <span className="text-sm text-muted-foreground">톤당 가격</span>
@@ -46,7 +45,6 @@ const CopperCard = ({ data }: CopperCardProps) => {
           </span>
         </div>
       </div>
-
       <div className="mt-3 text-[11px] text-muted-foreground">
         기준일 {data.baseDate.replace(/-/g, '.')} · 환율 {formatNumber(data.usdkrw)}원/USD
       </div>
