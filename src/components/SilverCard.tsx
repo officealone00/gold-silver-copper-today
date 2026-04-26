@@ -24,7 +24,6 @@ const SilverCard = ({ data }: SilverCardProps) => {
           <p className="text-xs text-muted-foreground">{data.source} 기준</p>
         </div>
       </div>
-
       <div className="space-y-3">
         <div className="flex justify-between items-center">
           <span className="text-sm text-muted-foreground">한돈 매수</span>
@@ -41,7 +40,6 @@ const SilverCard = ({ data }: SilverCardProps) => {
           </span>
         </div>
       </div>
-
       <div className="mt-3 text-[11px] text-muted-foreground">
         기준일 {data.baseDate.replace(/-/g, '.')} · 1돈 = 3.75g
       </div>

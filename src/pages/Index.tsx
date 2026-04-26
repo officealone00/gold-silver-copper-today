@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Header from '@/components/Header';
 import SummaryBox from '@/components/SummaryBox';
 import GoldCard from '@/components/GoldCard';
@@ -28,6 +28,7 @@ const Index = () => {
   const [showSplash, setShowSplash] = useState(true);
   const splashStart = useRef(Date.now());
   const adTriggered = useRef(false);
+  const calcAdShown = useRef(false);
 
   // Initial fetch
   useEffect(() => {
@@ -44,18 +45,21 @@ const Index = () => {
     }
   }, [isLoading]);
 
-  // Track home view + trigger interstitial after main UI renders
+  // Track home view (전면 광고는 여기서 안 띄움)
   useEffect(() => {
     if (!showSplash && data && !adTriggered.current) {
       adTriggered.current = true;
       track('view_home');
       if (usedFallback) track('fallback_data_used');
-      // Only show interstitial for free users, delayed
-      if (!isPremium) {
-        triggerDelayedAd();
-      }
     }
-  }, [showSplash, data, isPremium, triggerDelayedAd, track, usedFallback]);
+  }, [showSplash, data, track, usedFallback]);
+
+  // 계산기 첫 사용 시 전면 광고 (1회만)
+  const handleFirstCalc = useCallback(() => {
+    if (calcAdShown.current || isPremium) return;
+    calcAdShown.current = true;
+    triggerDelayedAd();
+  }, [isPremium, triggerDelayedAd]);
 
   const handleRefresh = () => {
     track('refresh_prices');
@@ -107,11 +111,11 @@ const Index = () => {
         )}
 
         <SectionErrorBoundary sectionName="GoldCalculator">
-          <GoldCalculator goldData={data.gold} />
+          <GoldCalculator goldData={data.gold} onFirstCalc={handleFirstCalc} />
         </SectionErrorBoundary>
 
         <SectionErrorBoundary sectionName="GoldSavingSimulator">
-          <GoldSavingSimulator goldData={data.gold} />
+          <GoldSavingSimulator goldData={data.gold} onFirstCalc={handleFirstCalc} />
         </SectionErrorBoundary>
 
         {!isPremium && (
@@ -121,7 +125,7 @@ const Index = () => {
         )}
 
         <SectionErrorBoundary sectionName="SilverInvestmentCalculator">
-          <SilverInvestmentCalculator silverData={data.silver} />
+          <SilverInvestmentCalculator silverData={data.silver} onFirstCalc={handleFirstCalc} />
         </SectionErrorBoundary>
       </div>
 

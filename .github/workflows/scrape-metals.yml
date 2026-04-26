@@ -1,0 +1,39 @@
+name: scrape-metals
+
+on:
+  schedule:
+    # KST 09:30 = UTC 00:30 (한국금거래소가 KST 09시쯤 갱신하므로 그 직후)
+    - cron: '30 0 * * *'
+  workflow_dispatch: # 수동 실행 가능
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run scraper
+        run: node scraper/scrape.js
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/prices.json
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "chore: update metals prices [auto]"
+            # 자동 커밋 + 사람 커밋 충돌 방지
+            git pull --rebase origin main || true
+            git push
+          fi

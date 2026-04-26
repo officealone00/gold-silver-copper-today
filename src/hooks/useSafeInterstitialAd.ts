@@ -1,137 +1,86 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { importGoogleAdMob, type GoogleAdMobSDK } from '@/utils/tossAdSdk';
+import { loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/web-framework';
 
 const TEST_AD_GROUP_ID = 'ait-ad-test-interstitial-id';
 const PROD_AD_GROUP_ID = 'ait.v2.live.94fb97941dd14bcb';
-const IS_DEV = import.meta.env.DEV;
-const AD_GROUP_ID = IS_DEV ? TEST_AD_GROUP_ID : PROD_AD_GROUP_ID;
+const USE_TEST_ADS = false;
+const AD_GROUP_ID = USE_TEST_ADS ? TEST_AD_GROUP_ID : PROD_AD_GROUP_ID;
 
-/** Delay (ms) after main UI renders before showing interstitial */
 const INTERSTITIAL_DELAY_MS = 1800;
 
 type AdStatus = 'idle' | 'loading' | 'loaded' | 'showing' | 'dismissed' | 'error' | 'unsupported';
 
-/**
- * Safe interstitial ad hook.
- * - Never throws uncaught errors
- * - Delays ad show until after main UI is painted
- * - All operations wrapped in try/catch
- * - Returns no-op callbacks if SDK unavailable
- */
+function safeIsSupported(fn: any): boolean {
+  try {
+    if (typeof fn?.isSupported === 'function') return fn.isSupported();
+    return false;
+  } catch { return false; }
+}
+
 export function useSafeInterstitialAd() {
   const [status, setStatus] = useState<AdStatus>('idle');
-  const sdkRef = useRef<GoogleAdMobSDK | null>(null);
-  const cleanupRef = useRef<(() => void) | null>(null);
   const isMountedRef = useRef(true);
+  const adLoadedRef = useRef(false);
   const shownRef = useRef(false);
 
-  const pauseAllMedia = useCallback(() => {
+  const loadAd = useCallback(() => {
     try {
-      document.querySelectorAll<HTMLMediaElement>('audio, video').forEach((el) => {
-        if (!el.paused) {
-          el.dataset.adPaused = 'true';
-          el.pause();
-        }
-      });
-    } catch { /* safe */ }
-  }, []);
-
-  const resumeAllMedia = useCallback(() => {
-    try {
-      document.querySelectorAll<HTMLMediaElement>('audio, video').forEach((el) => {
-        if (el.dataset.adPaused === 'true') {
-          delete el.dataset.adPaused;
-          el.play().catch(() => {});
-        }
-      });
-    } catch { /* safe */ }
-  }, []);
-
-  const loadAd = useCallback(async () => {
-    try {
-      const sdk = sdkRef.current ?? await importGoogleAdMob();
-      if (!sdk) {
-        if (isMountedRef.current) setStatus('unsupported');
-        return;
-      }
-      sdkRef.current = sdk;
-
-      if (sdk.loadAppsInTossAdMob.isSupported() !== true) {
-        if (isMountedRef.current) setStatus('unsupported');
+      if (!safeIsSupported(loadFullScreenAd)) {
+        setStatus('unsupported');
         return;
       }
 
       setStatus('loading');
 
-      const cleanup = sdk.loadAppsInTossAdMob({
+      loadFullScreenAd({
         options: { adGroupId: AD_GROUP_ID },
-        onEvent: (event) => {
+        onEvent: (event: any) => {
           if (!isMountedRef.current) return;
           if (event.type === 'loaded') {
-            console.log('[SafeAd] interstitial loaded');
+            console.log('[SafeAd] 전면광고 로드 완료');
+            adLoadedRef.current = true;
             setStatus('loaded');
-            cleanup();
           }
         },
-        onError: (error) => {
-          console.warn('[SafeAd] interstitial load failed', error);
+        onError: (error: any) => {
+          console.warn('[SafeAd] 전면광고 로드 실패', error);
           if (isMountedRef.current) setStatus('error');
-          cleanup?.();
         },
       });
-
-      cleanupRef.current = cleanup;
-    } catch (err) {
-      console.warn('[SafeAd] loadAd error', err);
-      if (isMountedRef.current) setStatus('error');
+    } catch {
+      if (isMountedRef.current) setStatus('unsupported');
     }
   }, []);
 
-  const showAd = useCallback(async () => {
+  const showAd = useCallback(() => {
     try {
-      const sdk = sdkRef.current;
-      if (!sdk || sdk.showAppsInTossAdMob.isSupported() !== true) {
-        console.warn('[SafeAd] showAd not supported');
-        return;
-      }
+      if (!adLoadedRef.current || !safeIsSupported(showFullScreenAd)) return;
 
-      pauseAllMedia();
       setStatus('showing');
 
-      sdk.showAppsInTossAdMob({
+      showFullScreenAd({
         options: { adGroupId: AD_GROUP_ID },
-        onEvent: (event) => {
+        onEvent: (event: any) => {
           if (!isMountedRef.current) return;
           if (event.type === 'dismissed') {
-            console.log('[SafeAd] interstitial dismissed');
+            console.log('[SafeAd] 전면광고 닫힘');
+            adLoadedRef.current = false;
             setStatus('dismissed');
-            resumeAllMedia();
             loadAd();
           } else if (event.type === 'failedToShow') {
-            console.warn('[SafeAd] interstitial failedToShow');
             setStatus('error');
-            resumeAllMedia();
           }
         },
-        onError: (error) => {
-          console.warn('[SafeAd] showAd error', error);
-          if (isMountedRef.current) {
-            setStatus('error');
-            resumeAllMedia();
-          }
+        onError: (error: any) => {
+          console.warn('[SafeAd] 전면광고 표시 실패', error);
+          if (isMountedRef.current) setStatus('error');
         },
       });
-    } catch (err) {
-      console.warn('[SafeAd] showAd caught error', err);
+    } catch {
       if (isMountedRef.current) setStatus('error');
-      resumeAllMedia();
     }
-  }, [pauseAllMedia, resumeAllMedia, loadAd]);
+  }, [loadAd]);
 
-  /**
-   * Trigger interstitial with delay after main UI is visible.
-   * Call this once after main content has rendered.
-   */
   const triggerDelayedAd = useCallback(() => {
     if (shownRef.current) return;
     shownRef.current = true;
@@ -145,10 +94,7 @@ export function useSafeInterstitialAd() {
   useEffect(() => {
     isMountedRef.current = true;
     loadAd();
-    return () => {
-      isMountedRef.current = false;
-      cleanupRef.current?.();
-    };
+    return () => { isMountedRef.current = false; };
   }, [loadAd]);
 
   return { status, triggerDelayedAd, adGroupId: AD_GROUP_ID };

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { formatNumber } from '@/utils/formatNumber';
 import { calcSilverByWeight, calcSilverByAmount } from '@/utils/priceCalculator';
 import { DON_TO_GRAM } from '@/utils/unitConverter';
@@ -6,14 +6,23 @@ import type { PriceData } from '@/services/mockData';
 
 interface SilverInvestmentCalculatorProps {
   silverData: PriceData['silver'];
+  onFirstCalc?: () => void;
 }
 
-const SilverInvestmentCalculator = ({ silverData }: SilverInvestmentCalculatorProps) => {
+const SilverInvestmentCalculator = ({ silverData, onFirstCalc }: SilverInvestmentCalculatorProps) => {
   const [mode, setMode] = useState<'weight' | 'amount'>('weight');
   const [input, setInput] = useState('');
   const [unit, setUnit] = useState<'g' | 'don'>('don');
+  const firstCalcRef = useRef(false);
 
   const inputNum = parseFloat(input) || 0;
+
+  useEffect(() => {
+    if (inputNum > 0 && !firstCalcRef.current) {
+      firstCalcRef.current = true;
+      onFirstCalc?.();
+    }
+  }, [inputNum, onFirstCalc]);
 
   const renderWeightResult = () => {
     if (inputNum <= 0) return null;
@@ -62,7 +71,6 @@ const SilverInvestmentCalculator = ({ silverData }: SilverInvestmentCalculatorPr
     <div className="mx-5 price-card">
       <h2 className="text-base font-bold mb-4">🪙 은 투자 계산기</h2>
 
-      {/* Mode toggle */}
       <div className="flex gap-2 mb-3">
         <button
           onClick={() => { setMode('weight'); setInput(''); }}

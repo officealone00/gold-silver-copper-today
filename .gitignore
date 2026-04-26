@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# 빌드 산출물 / 임시 파일
+.granite/
+*.ait
+supabase/.temp/
+
+# 정찰 스크립트 (선택)
+scripts/

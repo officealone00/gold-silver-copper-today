@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { formatNumber, formatPercent } from '@/utils/formatNumber';
 import { calcSavingSimulation } from '@/utils/priceCalculator';
 import type { PriceData } from '@/services/mockData';
 
 interface GoldSavingSimulatorProps {
   goldData: PriceData['gold'];
+  onFirstCalc?: () => void;
 }
 
-const GoldSavingSimulator = ({ goldData }: GoldSavingSimulatorProps) => {
+const GoldSavingSimulator = ({ goldData, onFirstCalc }: GoldSavingSimulatorProps) => {
   const [monthlyAmount, setMonthlyAmount] = useState<string>('');
   const [months, setMonths] = useState<number>(12);
+  const firstCalcRef = useRef(false);
 
   const amountQuick = [100000, 300000, 500000, 1000000];
   const monthQuick = [6, 12, 24, 36];
@@ -19,11 +21,17 @@ const GoldSavingSimulator = ({ goldData }: GoldSavingSimulatorProps) => {
     ? calcSavingSimulation(monthly, months, goldData.buy)
     : null;
 
+  useEffect(() => {
+    if (monthly > 0 && !firstCalcRef.current) {
+      firstCalcRef.current = true;
+      onFirstCalc?.();
+    }
+  }, [monthly, onFirstCalc]);
+
   return (
     <div className="mx-5 price-card">
       <h2 className="text-base font-bold mb-4">📊 금 적립 시뮬레이션</h2>
 
-      {/* Monthly amount */}
       <label className="text-sm text-muted-foreground mb-1 block">월 적립 금액</label>
       <input
         type="number"
@@ -45,7 +53,6 @@ const GoldSavingSimulator = ({ goldData }: GoldSavingSimulatorProps) => {
         ))}
       </div>
 
-      {/* Months */}
       <label className="text-sm text-muted-foreground mb-1 block">적립 기간</label>
       <div className="flex gap-2 mb-4">
         {monthQuick.map((m) => (
@@ -59,7 +66,6 @@ const GoldSavingSimulator = ({ goldData }: GoldSavingSimulatorProps) => {
         ))}
       </div>
 
-      {/* Result */}
       {result && (
         <div className="bg-muted rounded-xl p-4 space-y-2">
           <div className="flex justify-between text-sm">

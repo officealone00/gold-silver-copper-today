@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { formatNumber } from '@/utils/formatNumber';
 import { calcGoldPrice } from '@/utils/priceCalculator';
 import { DON_TO_GRAM } from '@/utils/unitConverter';
@@ -6,12 +6,14 @@ import type { PriceData } from '@/services/mockData';
 
 interface GoldCalculatorProps {
   goldData: PriceData['gold'];
+  onFirstCalc?: () => void;
 }
 
-const GoldCalculator = ({ goldData }: GoldCalculatorProps) => {
+const GoldCalculator = ({ goldData, onFirstCalc }: GoldCalculatorProps) => {
   const [weight, setWeight] = useState<string>('');
   const [unit, setUnit] = useState<'g' | 'don'>('don');
   const [priceType, setPriceType] = useState<'buy' | 'sell'>('buy');
+  const firstCalcRef = useRef(false);
 
   const quickDon = [1, 3, 5, 10];
   const pricePerDon = priceType === 'buy' ? goldData.buy : goldData.sell;
@@ -20,6 +22,13 @@ const GoldCalculator = ({ goldData }: GoldCalculatorProps) => {
   const weightG = unit === 'don' ? weightNum * DON_TO_GRAM : weightNum;
   const weightDon = unit === 'don' ? weightNum : weightNum / DON_TO_GRAM;
   const totalPrice = calcGoldPrice(weightG, pricePerDon);
+
+  useEffect(() => {
+    if (weightNum > 0 && !firstCalcRef.current) {
+      firstCalcRef.current = true;
+      onFirstCalc?.();
+    }
+  }, [weightNum, onFirstCalc]);
 
   const handleQuick = (don: number) => {
     setUnit('don');
@@ -30,7 +39,6 @@ const GoldCalculator = ({ goldData }: GoldCalculatorProps) => {
     <div className="mx-5 price-card">
       <h2 className="text-base font-bold mb-4">💰 금 계산기</h2>
 
-      {/* Unit toggle */}
       <div className="flex gap-2 mb-3">
         {(['don', 'g'] as const).map((u) => (
           <button
@@ -43,7 +51,6 @@ const GoldCalculator = ({ goldData }: GoldCalculatorProps) => {
         ))}
       </div>
 
-      {/* Price type toggle */}
       <div className="flex gap-2 mb-3">
         {(['buy', 'sell'] as const).map((t) => (
           <button
@@ -56,7 +63,6 @@ const GoldCalculator = ({ goldData }: GoldCalculatorProps) => {
         ))}
       </div>
 
-      {/* Input */}
       <input
         type="number"
         inputMode="decimal"
@@ -66,7 +72,6 @@ const GoldCalculator = ({ goldData }: GoldCalculatorProps) => {
         className="w-full px-4 py-3 rounded-xl bg-muted text-foreground text-base outline-none focus:ring-2 focus:ring-primary mb-3"
       />
 
-      {/* Quick buttons */}
       <div className="flex gap-2 mb-4">
         {quickDon.map((d) => (
           <button
@@ -79,7 +84,6 @@ const GoldCalculator = ({ goldData }: GoldCalculatorProps) => {
         ))}
       </div>
 
-      {/* Result */}
       {weightNum > 0 && (
         <div className="bg-muted rounded-xl p-4 space-y-2">
           <div className="flex justify-between text-sm">
