@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           id: string
           krw_per_don: number
+          krw_per_don_sell: number | null
           krw_per_gram: number
           metal: string
           source: string
@@ -32,6 +33,7 @@ export type Database = {
           created_at?: string
           id?: string
           krw_per_don?: number
+          krw_per_don_sell?: number | null
           krw_per_gram?: number
           metal: string
           source?: string
@@ -44,6 +46,7 @@ export type Database = {
           created_at?: string
           id?: string
           krw_per_don?: number
+          krw_per_don_sell?: number | null
           krw_per_gram?: number
           metal?: string
           source?: string

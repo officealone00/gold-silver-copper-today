@@ -1,0 +1,1 @@
+ALTER TABLE public.metal_prices ADD COLUMN IF NOT EXISTS krw_per_don_sell numeric;
