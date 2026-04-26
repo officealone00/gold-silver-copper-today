@@ -1,0 +1,15 @@
+name: probe-sources-v2
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Probe v2
+        run: node scraper/probe2.js
