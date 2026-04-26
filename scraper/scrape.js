@@ -1,6 +1,6 @@
-// scraper/scrape.js (ESM)
-// GitHub Actions에서 매일 1회 실행. 한국금거래소 + Yahoo HG=F + 네이버 환율 fetch.
-// 결과: data/prices.json 생성
+// scraper/scrape.js (ESM) — v3
+// 한국금거래소가 클라우드 IP를 차단해서 자매 사이트 (soongumnara, exgold) 사용.
+// 두 사이트 모두 한국금거래소 backend를 공유하므로 같은 데이터.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,42 +17,80 @@ const UA_MOBILE =
   'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
 const LB_PER_TON = 2204.62;
+const GRAM_PER_DON = 3.75;
 
-// ───── 1) 한국금거래소 /api/main → 금/은 (원/돈) ─────
-async function fetchKoreaGoldX() {
-  const res = await fetch('https://m.koreagoldx.co.kr/api/main', {
-    method: 'POST',
-    headers: {
-      'User-Agent': UA_MOBILE,
-      'Accept': 'application/json, text/javascript, */*; q=0.01',
-      'Accept-Language': 'ko-KR,ko;q=0.9',
-      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      'X-Requested-With': 'XMLHttpRequest',
-      'Referer': 'https://m.koreagoldx.co.kr/',
-      'Origin': 'https://m.koreagoldx.co.kr',
-    },
-    body: '',
-  });
-  if (!res.ok) throw new Error(`koreagoldx HTTP ${res.status}`);
+// ───── 1) 한국금거래소 시세 — 자매사이트 순차 시도 ─────
+// 우선순위: soongumnara (officialPrice4 있음) → exgold (marketPriceList만 있음, 도매가)
+async function fetchKoreaGoldXFromMirror() {
+  const candidates = [
+    { name: 'soongumnara', url: 'https://www.soongumnara.co.kr/api/main', origin: 'https://www.soongumnara.co.kr' },
+    { name: 'exgold',      url: 'https://www.exgold.co.kr/api/main',      origin: 'https://www.exgold.co.kr' },
+  ];
 
-  const json = await res.json();
-  const p = json.officialPrice4;
-  if (!p || !p.s_pure) throw new Error('officialPrice4 missing');
+  let lastErr;
+  for (const c of candidates) {
+    try {
+      const res = await fetch(c.url, {
+        method: 'POST',
+        headers: {
+          'User-Agent': UA_MOBILE,
+          'Accept': 'application/json, text/javascript, */*; q=0.01',
+          'Accept-Language': 'ko-KR,ko;q=0.9',
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Referer': c.origin + '/',
+          'Origin': c.origin,
+        },
+        body: '',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
 
-  const goldBuy = Number(p.s_pure);
-  const goldSell = Number(p.p_pure);
-  const silverBuy = Number(p.s_silver);
-  const silverSell = Number(p.p_silver);
+      // ── 1차 우선: officialPrice4 (소매가, 살때/팔때 분리) ──
+      const p = json.officialPrice4;
+      if (p && p.s_pure) {
+        const goldBuy = Number(p.s_pure);
+        const goldSell = Number(p.p_pure);
+        const silverBuy = Number(p.s_silver);
+        const silverSell = Number(p.p_silver);
+        return {
+          via: `${c.name} (officialPrice4)`,
+          date: String(p.date || ''),
+          goldBuy, goldSell,
+          goldPrevBuy: goldBuy - Number(p.turm_s_pure || 0),
+          silverBuy, silverSell,
+          silverPrevBuy: silverBuy - Number(p.turm_s_silver || 0),
+        };
+      }
 
-  return {
-    date: String(p.date || ''),
-    goldBuy,
-    goldSell,
-    goldPrevBuy: goldBuy - Number(p.turm_s_pure || 0),
-    silverBuy,
-    silverSell,
-    silverPrevBuy: silverBuy - Number(p.turm_s_silver || 0),
-  };
+      // ── 2차 fallback: marketPriceList (도매가, 살때=팔때) ──
+      const list = json.marketPriceList;
+      if (Array.isArray(list)) {
+        const au = list.find((x) => x.type === 'au');
+        const ag = list.find((x) => x.type === 'ag');
+        if (au?.priceGram && ag?.priceGram) {
+          const goldKrwPerDon = Math.round(Number(au.priceGram) * GRAM_PER_DON);
+          const silverKrwPerDon = Math.round(Number(ag.priceGram) * GRAM_PER_DON);
+          return {
+            via: `${c.name} (marketPriceList 도매)`,
+            date: String(json.date || au.date || ''),
+            goldBuy: goldKrwPerDon,
+            goldSell: goldKrwPerDon,
+            goldPrevBuy: goldKrwPerDon - Math.round(Number(au.askDiff || 0) * GRAM_PER_DON),
+            silverBuy: silverKrwPerDon,
+            silverSell: silverKrwPerDon,
+            silverPrevBuy: silverKrwPerDon - Math.round(Number(ag.askDiff || 0) * GRAM_PER_DON),
+          };
+        }
+      }
+
+      throw new Error('no usable price fields in response');
+    } catch (e) {
+      console.log(`  [${c.name}] failed:`, e.message);
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('all gold mirror sources failed');
 }
 
 // ───── 2) Yahoo Finance HG=F → 구리 USD/lb → USD/ton ─────
@@ -73,7 +111,7 @@ async function fetchYahooCopper() {
   };
 }
 
-// ───── 3) 네이버 환율 (EUC-KR) → USD/KRW. 실패시 Yahoo KRW=X ─────
+// ───── 3) 환율: 네이버 → Yahoo KRW=X ─────
 async function fetchNaverFx() {
   const res = await fetch('https://finance.naver.com/marketindex/exchangeList.naver', {
     headers: {
@@ -116,12 +154,16 @@ try {
 } catch (_) {}
 
 const [gxRes, cuRes, fxRes] = await Promise.allSettled([
-  fetchKoreaGoldX(),
+  fetchKoreaGoldXFromMirror(),
   fetchYahooCopper(),
   fetchNaverFx().catch(() => fetchYahooFx()),
 ]);
 
-console.log('  gold/silver:', gxRes.status, gxRes.status === 'rejected' ? gxRes.reason?.message : 'OK');
+console.log(
+  '  gold/silver:',
+  gxRes.status,
+  gxRes.status === 'rejected' ? gxRes.reason?.message : `OK via ${gxRes.value.via}`,
+);
 console.log('  copper:', cuRes.status, cuRes.status === 'rejected' ? cuRes.reason?.message : 'OK');
 console.log('  fx:', fxRes.status, fxRes.status === 'rejected' ? fxRes.reason?.message : 'OK');
 
@@ -131,6 +173,11 @@ if (!usdkrw) {
   console.error('FATAL: usdkrw unavailable and no prev cache');
   process.exit(1);
 }
+
+const goldSourceLabel =
+  gxRes.status === 'fulfilled' && gxRes.value.via.includes('officialPrice4')
+    ? '한국금거래소'
+    : '한국금거래소 (도매)';
 
 const out = {
   success: true,
@@ -145,7 +192,7 @@ const out = {
           krwPerDon: gxRes.value.goldBuy,
           krwPerDonSell: gxRes.value.goldSell,
           prevKrwPerDon: gxRes.value.goldPrevBuy,
-          source: '한국금거래소',
+          source: goldSourceLabel,
         }
       : prev?.gold || {
           baseDate: today, krwPerDon: 0, krwPerDonSell: 0, prevKrwPerDon: 0, source: '한국금거래소',
@@ -158,7 +205,7 @@ const out = {
           krwPerDon: gxRes.value.silverBuy,
           krwPerDonSell: gxRes.value.silverSell,
           prevKrwPerDon: gxRes.value.silverPrevBuy,
-          source: '한국금거래소',
+          source: goldSourceLabel,
         }
       : prev?.silver || {
           baseDate: today, krwPerDon: 0, krwPerDonSell: 0, prevKrwPerDon: 0, source: '한국금거래소',
