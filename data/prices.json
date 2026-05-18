@@ -1,26 +1,26 @@
 {
   "success": true,
-  "collectedAt": "2026-05-17T04:39:33.472Z",
-  "usdkrw": 1500,
+  "collectedAt": "2026-05-18T04:50:44.700Z",
+  "usdkrw": 1504.6,
   "source": "한국금거래소 + Yahoo Finance",
   "gold": {
-    "baseDate": "2026-05-17",
-    "krwPerDon": 958000,
-    "krwPerDonSell": 796000,
-    "prevKrwPerDon": 967000,
+    "baseDate": "2026-05-18",
+    "krwPerDon": 962000,
+    "krwPerDonSell": 804000,
+    "prevKrwPerDon": 958000,
     "source": "한국금거래소"
   },
   "silver": {
-    "baseDate": "2026-05-17",
-    "krwPerDon": 15740,
-    "krwPerDonSell": 12790,
-    "prevKrwPerDon": 16250,
+    "baseDate": "2026-05-18",
+    "krwPerDon": 15640,
+    "krwPerDonSell": 12700,
+    "prevKrwPerDon": 15740,
     "source": "한국금거래소"
   },
   "copper": {
-    "baseDate": "2026-05-17",
-    "usdPerTon": 13878,
-    "prevUsdPerTon": 14297,
+    "baseDate": "2026-05-18",
+    "usdPerTon": 13750,
+    "prevUsdPerTon": 14628,
     "source": "COMEX HG=F"
   }
 }
